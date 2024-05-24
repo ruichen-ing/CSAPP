@@ -198,12 +198,8 @@ int allOddBits(int x) {
   int val1;
   int val2;
   // important: construct 0xAAAAAAAA by left shift
-  val1 = 0xAA << 8;   // 0xAA00
-  val1 = val1 + 0xAA; // 0xAAAA
-  val1 = val1 << 8;   // 0xAAAA00
-  val1 = val1 + 0xAA; // 0xAAAAAA
-  val1 = val1 << 8;   // 0xAAAAAA00
-  val1 = val1 + 0xAA; // 0xAAAAAAAA
+  val1 = (0xAA << 8) + 0xAA;   // 0xAAAA
+  val1 = (val1 << 16) + val1;   // 0xAAAA00
   val2 = x & val1;
   return !(~(~val2 ^ val1));
 }
@@ -215,8 +211,12 @@ int allOddBits(int x) {
  *   Rating: 2
  */
 int negate(int x) {
-
-  return 2;
+  // 1 --> 0xfffffffe - 1 --> 0x00000001 + 1 - 1 --> -1
+  // 48 = 0x00000030 --> 0xffffffcf - 1 --> 0x00000030 + 1 - 1 --> -48
+  // 0x00000000 --> 0xffffffff - 1 --> 0x00000000 + 1 - 1 --> -0
+  // 0x80000000 --> 0x7fffffff - 1 --> 0x80000000 + 1 - 1 --> -max?
+  printf("val = %x\n", x);
+  return (~x) - 1;
 }
 //3
 /* 
@@ -229,11 +229,22 @@ int negate(int x) {
  *   Rating: 3
  */
 int isAsciiDigit(int x) {
-  // 00110000 <= x <= 00111001
-  // first 4 bits are 0011; last 4 bits are no more than 1001 --> second and third bits are 0
-  ~((x >> 4) ^ 0xC) // expect to be 0
-  x & 0110 // expect to be 0
-  return !(~((x >> 4) ^ 0xC) + (x & 0110));
+  // TODO
+  // 00110000 <= x <= 00111001, 0000, 0001, 0010, 0011, 0100, 0101, 0111, 1000, 1001; not allowed: 1010, 1011, 1100, 1101, 1110, 1111
+  // first 4 bits are 0011; last 4 bits are no more than 1001
+  int val1;
+  int val2;
+  int val3;
+  val3 = (x >> 4);
+  // extract 5th to 8th bits (count from right to left)
+  // first 4 bits 0011 ^ 0xC = 1111, ~1111 = 0, else > 0
+  // 0x000000 0011 ^ 0x0000000 1100 
+  val1 = ~((x >> 4) ^ 0xC); // expect to be 0
+  // extract 2th to 4th bits (count from right to left)
+  // first bit is 0, or first bit is 1 and the following 2 bits are 00 (100 ^ 011 = 111) --> 0xxx, 100x
+  val2 = ~((x >> 3) & 0x1) & !(~((x >> 1) ^ 0x3)); // expect to be 1
+  // printf("x = %x, val1 = %x, val2 = %x, val3 = %x\n", x, val1, val2, val3);
+  return !(val1 + ~val2);
 }
 /* 
  * conditional - same as x ? y : z 
@@ -243,7 +254,14 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-  return 2;
+  // if x == 0, return z; else return y
+  int val1 = !(!x);
+  val1 = (val1 << 1) + val1;  // 00 or 11
+  val1 = (val1 << 2) + val1;  // 0000 or 1111
+  val1 = (val1 << 4) + val1;  // 00000000 or 11111111
+  val1 = (val1 << 8) + val1;  // 0x0000 or 0xffff
+  val1 = (val1 << 16) + val1; // 0x00000000 or 0xffffffff
+  return (val1 & y) + (~val1 & z);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -253,6 +271,9 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
+  // int val1 = x ^ y;
+  // find the location i of the first 1 in val1 from right to left
+  // compare bit value of x at location i and y at location i
   return 2;
 }
 //4

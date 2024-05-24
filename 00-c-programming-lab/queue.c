@@ -24,9 +24,13 @@
 */
 queue_t *q_new()
 {
-    queue_t *q =  malloc(sizeof(queue_t));
+    queue_t *q =  (queue_t*)malloc(sizeof(queue_t));
     /* What if malloc returned NULL? */
-    q->head = NULL;
+    if(q){
+      q->head = NULL;
+      q->tail = NULL;
+      q->list_size = 0;
+    }
     return q;
 }
 
@@ -34,8 +38,17 @@ queue_t *q_new()
 void q_free(queue_t *q)
 {
     /* How about freeing the list elements and the strings? */
+    while(q && q->head){
+      list_ele_t *temp = q->head->next;
+      free(q->head->value);
+      free(q->head);
+      q->head = temp;
+      q->list_size -= 1;
+    }
     /* Free queue structure */
-    free(q);
+    if(q){
+      free(q);
+    }
 }
 
 /*
@@ -46,17 +59,37 @@ void q_free(queue_t *q)
   The function must explicitly allocate space and copy the string into it.
  */
 bool q_insert_head(queue_t *q, char *s)
-{
-    list_ele_t *newh;
+{   
     /* What should you do if the q is NULL? */
-    newh = malloc(sizeof(list_ele_t));
-    /* Don't forget to allocate space for the string and copy it */
+    if(!q){
+      return false;
+    }
+    list_ele_t *newh;
+    newh = (list_ele_t*)malloc(sizeof(list_ele_t));
     /* What if either call to malloc returns NULL? */
+    if(!newh){
+      return false;
+    }
+    // strlen + 1 accounts for the null terminator \0 at the end of string, as this terminator is not counted when calling strlen
+    char *newS = (char*)malloc((strlen(s) + 1) * sizeof(char));
+    // why do we check if malloc returns NULL seperately for newS and newh?
+    // Because we need to avoid memory leakage, that means if newS is NULL then we need to free the space of newh
+    if(!newS){
+      free(newh);
+      return false;
+    }
+    /* Don't forget to allocate space for the string and copy it */
+    strcpy(newS, s);
+    newh->value = newS;
+    // head insertion
     newh->next = q->head;
     q->head = newh;
+    if(!q->tail){
+      q->tail = newh;
+    }
+    q->list_size += 1;
     return true;
 }
-
 
 /*
   Attempt to insert element at tail of queue.
@@ -69,7 +102,31 @@ bool q_insert_tail(queue_t *q, char *s)
 {
     /* You need to write the complete code for this function */
     /* Remember: It should operate in O(1) time */
-    return false;
+    if(!q){
+      return false;
+    }
+    list_ele_t *newt = (list_ele_t*)malloc(sizeof(list_ele_t));
+    if(!newt){
+      return false;
+    }
+    char *newS = (char*)malloc((strlen(s) + 1) * sizeof(char));
+    if(!newS){
+      free(newt);
+      return false;
+    }
+    strcpy(newS, s);
+    newt->value = newS;
+    // tail insertion
+    newt->next = NULL;
+    if(q->tail){
+      q->tail->next = newt;
+    }
+    q->tail = newt;
+    if(!q->head){
+      q->head = newt;
+    }
+    q->list_size += 1;
+    return true;
 }
 
 /*
@@ -83,7 +140,22 @@ bool q_insert_tail(queue_t *q, char *s)
 bool q_remove_head(queue_t *q, char *sp, size_t bufsize)
 {
     /* You need to fix up this code. */
+    if(!q || !q->head){
+      return false;
+    }
+    list_ele_t *removed = q->head;
     q->head = q->head->next;
+    if(q->tail == removed){
+      q->tail = NULL;
+    }
+    q->list_size -= 1;
+    if(sp){
+      // no need to allocate space for sp as the space has been created for it in the caller function
+      strncpy(sp, removed->value, bufsize - 1); // strncpy: copy at most bufsize - 1 characters from target to dest
+      sp[bufsize - 1] = '\0';   // set the last character to \0, specifically when the target string is truncated
+    }
+    free(removed->value);
+    free(removed);
     return true;
 }
 
@@ -95,7 +167,7 @@ int q_size(queue_t *q)
 {
     /* You need to write the code for this function */
     /* Remember: It should operate in O(1) time */
-    return 0;
+    return q? q->list_size : 0;
 }
 
 /*
@@ -108,5 +180,20 @@ int q_size(queue_t *q)
 void q_reverse(queue_t *q)
 {
     /* You need to write the code for this function */
+    if(!q || !q->head){
+      return;
+    }
+    list_ele_t *curr = q->head->next;
+    list_ele_t *pre = q->head;
+    list_ele_t *temp = NULL;
+    pre->next = NULL;
+    while(curr){
+      temp = curr->next;
+      curr->next = pre;
+      pre = curr;
+      curr = temp;
+    }
+    temp = q->head;
+    q->head = q->tail;
+    q->tail = temp;
 }
-
